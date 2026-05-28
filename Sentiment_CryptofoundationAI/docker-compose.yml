@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  sentiment_api:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/hub_cf
+      - REDIS_URL=redis://redis:6379/0
+      - INTERNAL_API_KEY=local_dev_key
+    depends_on: [redis]
+    networks: [crypto_hub_net]
+
+  sentiment_worker:
+    build: .
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/hub_cf
+      - REDIS_URL=redis://redis:6379/0
+    depends_on: [redis]
+    networks: [crypto_hub_net]
+
+  sentiment_beat:
+    build: .
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on: [redis]
+    networks: [crypto_hub_net]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    networks: [crypto_hub_net]
+
+networks:
+  crypto_hub_net:
+    driver: bridge
